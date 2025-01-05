@@ -56,10 +56,11 @@ const Main = () => {
       try {
         const response = await axios.get("http://localhost:5001/chat-rooms");
         const userChatRooms = response.data;
+        console.log(userChatRooms);
 
         if (userChatRooms.length > 0) {
           const firstRoom = userChatRooms[0];
-          setChatRoomId(firstRoom.uuid); // Set chat room aktif
+          setChatRoomId(firstRoom.id); // Set chat room aktif
           fetchMessages(firstRoom.uuid);
         }
       } catch (error) {
@@ -89,38 +90,59 @@ const Main = () => {
     }
   };
 
+  useEffect(() => {
+    if (chatRoomId) {
+      console.log("Updated Chat Room ID:", chatRoomId);
+    }
+  }, [chatRoomId]);
+
+  const createChatRoom = async () => {
+    try {
+      const roomResponse = await axios.post(
+        "http://localhost:5001/chat-room", // Endpoint untuk membuat chat room
+        { name: "Default Room", description: "Default description" }
+      );
+      console.log("Created new room with ID:", roomResponse.data.room.id);
+      return roomResponse.data.room.id; // Return the new room ID
+    } catch (error) {
+      console.error("Error creating chat room:", error);
+      throw error; // Throw error to be handled in sendMessage
+    }
+  };
+
   const sendMessage = async () => {
     if (message.trim() !== "") {
       try {
         const uuid = userData.uuid;
         console.log("User ID di middleware verifyUser:", uuid);
+        console.log("Chatroom:", chatRoomId);
 
-        if (!chatRoomId) {
-          const roomResponse = await axios.post(
-            "http://localhost:5001/chat-room", // Endpoint untuk membuat chat room
-            { name: "Default Room", description: "Default description" }
-          );
-          const newRoom = roomResponse.data;
-          setChatRoomId(newRoom.id); // Set chatRoomId setelah room baru dibuat
+        let roomId = chatRoomId;
+
+        // If chatRoomId is not set, create a new chat room
+        if (!roomId) {
+          roomId = await createChatRoom(); // Call the createChatRoom function
+          setChatRoomId(roomId); // Set the roomId after it has been created
         }
 
         const newMessage = {
-          chatRoomId, // Menggunakan chatRoomId yang sudah ada atau yang baru dibuat
+          chatRoomId: roomId, // Use the roomId (either from state or created)
           uuid,
           message,
         };
 
-        // Emit pesan ke server
+        // Emit the message to the server
         socket.emit("sendMessage", newMessage);
 
+        // Send chat message details to the backend
         const response = await axios.post(
           "http://localhost:5001/chat-details",
           newMessage
         );
 
-        // Tambahkan pesan ke daftar pesan
+        // Add the message to the chatMessages state
         setChatMessages((prevMessages) => [...prevMessages, newMessage]);
-        setMessage(""); // Clear input message
+        setMessage(""); // Clear the message input
       } catch (error) {
         console.error("Error sending message:", error);
       }

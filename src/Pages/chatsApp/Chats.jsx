@@ -11,6 +11,7 @@ const Chats = () => {
   const userData = JSON.parse(sessionStorage.getItem("user"));
   const userId = userData.uuid;
   const { chatRoomId } = useParams();
+  const [roomId, setChatRoomId2] = useState("");
   const [username, setUsername] = useState("");
   const chatEndRef = useRef(null);
   const [chats, setChats] = useState([]);
@@ -28,9 +29,10 @@ const Chats = () => {
       const response = await axios.get(
         `http://localhost:5001/chat-details/${chatRoomId}`
       );
-      console.log("asep", response.data);
       const { name, chats } = response.data;
+      setChatRoomId2(response.data.chats[0].chatRoom_id);
       setChats(chats || []); // Pastikan chats adalah array
+
       setUsername(name);
       scrollToBottom();
     } catch (error) {
@@ -69,6 +71,7 @@ const Chats = () => {
       try {
         const uuid = userData.uuid; // Ambil UUID dari session
         console.log("User ID di middleware verifyUser:", uuid);
+        console.log("Room:", chatRoomId);
 
         if (!chatRoomId) {
           const roomResponse = await axios.post(
@@ -80,7 +83,7 @@ const Chats = () => {
         }
 
         const newMessage = {
-          chatRoomId, // Menggunakan chatRoomId yang sudah ada atau yang baru dibuat
+          chatRoomId,
           uuid,
           message,
           role: "admin", // Menambahkan peran admin di sini
@@ -94,6 +97,8 @@ const Chats = () => {
           "http://localhost:5001/chat-details",
           newMessage
         );
+        
+        fetchChats();
 
         // Tambahkan pesan ke daftar pesan yang ada
         setChats((prevChats) => [...prevChats, newMessage]);
